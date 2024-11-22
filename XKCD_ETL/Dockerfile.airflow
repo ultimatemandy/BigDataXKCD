@@ -1,0 +1,53 @@
+FROM marcelmittelstaedt/airflow:latest
+
+# Remove unnecessary directories
+RUN rm -rf /home/airflow/BigData
+RUN rm -rf /home/airflow/airflow/dags
+RUN rm -rf /home/airflow/airflow/python
+RUN rm -rf /home/airflow/airflow/plugins/python
+
+# Install necessary packages
+RUN apt-get update && apt-get install -y \
+    jq \
+    curl \
+    openssh-server \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Configure SSH
+RUN mkdir /var/run/sshd
+RUN echo 'root:root' | chpasswd
+RUN sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+RUN ssh-keygen -A
+
+# Add requirements file
+ADD ./requirements.txt /home/tmp/python/
+
+# Download MongoDB Spark Connector
+RUN wget https://repo1.maven.org/maven2/org/mongodb/spark/mongo-spark-connector_2.11/2.3.4/mongo-spark-connector_2.11-2.3.4.jar -P /home/airflow/airflow/plugins/
+
+# Create necessary directories
+RUN mkdir -p /user/hadoop/spotify/track_data/raw
+RUN mkdir -p /user/hadoop/spotify/track_data/final
+RUN chown -R airflow:airflow /user/hadoop/spotify/track_data
+
+# Set the working directory
+WORKDIR /home/tmp/python/
+
+# Install Python dependencies
+RUN pip3 install -r requirements.txt
+
+# Configure passwordless SSH for the hadoop user
+RUN useradd -m hadoop && echo "hadoop:hadoop" | chpasswd && \
+    mkdir -p /home/hadoop/.ssh && \
+    ssh-keygen -t rsa -N "" -f /home/hadoop/.ssh/id_rsa && \
+    cat /home/hadoop/.ssh/id_rsa.pub >> /home/hadoop/.ssh/authorized_keys && \
+    chown -R hadoop:hadoop /home/hadoop/.ssh && \
+    chmod 600 /home/hadoop/.ssh/authorized_keys
+
+# Expose SSH port
+EXPOSE 22
+
+# Start SSH service
+CMD ["/usr/sbin/sshd", "-D"]
