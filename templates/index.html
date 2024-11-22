@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XKCD Comics Search</title>
+</head>
+<body>
+    <h1>XKCD Comics Search</h1>
+    <form action="/" method="get">
+        <input type="text" name="query" placeholder="Search for comics" value="{{ request.args.get('query') }}">
+        <button type="submit">Search</button>
+    </form>
+
+    {% if results %}
+        <h2>Search Results:</h2>
+        <ul>
+        {% for comic in results %}
+            <li>
+                <h3>{{ comic.title }}</h3>
+                <img src="{{ comic.img }}" alt="{{ comic.alt_text }}" width="200">
+                <p>{{ comic.alt_text }}</p>
+            </li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <p>No results found.</p>
+    {% endif %}
+</body>
+</html>
